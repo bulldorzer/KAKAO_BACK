@@ -14,6 +14,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import org.zerock.mallapi.domain.Member;
 import org.zerock.mallapi.domain.MemberRole;
 import org.zerock.mallapi.dto.MemberDTO;
+import org.zerock.mallapi.dto.MemberModifyDTO;
 import org.zerock.mallapi.repository.MemberRepository;
 
 import java.util.LinkedHashMap;
@@ -30,10 +31,10 @@ public class MemberServiceImpl implements MemberService{
     @Override
     public MemberDTO getKakaoMember(String accessToken) {
 
-        String email = getEmailFromKakaoAccessToken(accessToken);
+        String email = getEmailFromKakaoAccessToken(accessToken); // 이메일 추출함 db에서 조회
         log.info("email: "+ email);
 
-        Optional<Member> result = memberRepository.findById(email);
+        Optional<Member> result = memberRepository.findById(email); // DB조회
 
         // 값이 있으면 기존의 회원 isPresent()<->empty()
         if (result.isPresent()){
@@ -41,13 +42,32 @@ public class MemberServiceImpl implements MemberService{
             return memberDTO;
         }
         // 회원 아닐시 닉네임은 소셜회원으로 패스워드는 임의로 생성
-        Member socialMember = makeSocialMember(email);
-        memberRepository.save(socialMember);
-        MemberDTO memberDTO = entityToDTO(socialMember);
+        Member socialMember = makeSocialMember(email); // 신규 회원 생성
+        memberRepository.save(socialMember); // 엔티티 db에 저장
+        MemberDTO memberDTO = entityToDTO(socialMember); //dto 변환후 반환
 
         return memberDTO;
     }
-    
+
+    @Override
+    public void modifyMember(MemberModifyDTO memberModifyDTO) {
+
+        Optional<Member> result = memberRepository.findById(memberModifyDTO.getEmail());
+
+        Member member = result.orElseThrow();
+
+        member.changePw(passwordEncoder.encode(member.getPw()));
+        member.changeNickname(memberModifyDTO.getNickname());
+        member.changeSocial(false);
+
+        memberRepository.save(member);
+
+    }
+
+    /*
+        인가코드를 송신하여 카카오API서버에서 수신받은 AccessToken을 해당 웹서버API에 전달받아
+        카카오API서버로 AccessToken을 송신하여 사용자 정보를 수신받는 기능
+    */
     private String getEmailFromKakaoAccessToken(String accessToken){
         String kakaoGetUserURL = "https://kapi.kakao.com/v2/user/me";
         
@@ -67,7 +87,7 @@ public class MemberServiceImpl implements MemberService{
         // URL을 동적으로 생성 - 이것을 기반으로 URI 객체 생성함
         UriComponents uriBuilder = UriComponentsBuilder.fromHttpUrl(kakaoGetUserURL).build();
 
-        // REstTemplate로 get 요청을 보냄
+        // RestTemplate로 get 요청을 보냄
         // JSON응답을 -> LinkedHashMap 객체로 받음
         ResponseEntity<LinkedHashMap> response = restTemplate.exchange(
                 uriBuilder.toString(), // 요청 url
@@ -87,6 +107,7 @@ public class MemberServiceImpl implements MemberService{
 
     }
 
+    // 난수 비밀번호 생성
     private String makeTempPassword(){
         StringBuffer buffer = new StringBuffer();
 
@@ -97,6 +118,7 @@ public class MemberServiceImpl implements MemberService{
         return buffer.toString();
     }
 
+    // 소셜로 로그인한 정보에 아무도 모르는 난수 비밀번호 삽입후 DB에 저장 (회원등록) - USER권한
     private Member makeSocialMember(String email){
 
         String tempPassword = makeTempPassword();
