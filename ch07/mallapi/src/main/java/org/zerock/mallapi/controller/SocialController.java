@@ -20,10 +20,12 @@ public class SocialController {
 
     @GetMapping("/api/member/kakao")
     public Map<String,Object> getMemberFromKakao(String accessToken){
+
         MemberDTO memberDTO = memberService.getKakaoMember(accessToken);
 
-        Map<String,Object> claims = memberDTO.getClaims();
+        Map<String,Object> claims = memberDTO.getClaims(); // 맵형식으로 변환
 
+        // 현재 내서버에서 accessToken, refreshToken 발급받아서 추가
         String jwtAccessToken = JWTUtil.generateToken(claims,10);
         String jwtRefreshToken = JWTUtil.generateToken(claims, 60*24);
 
