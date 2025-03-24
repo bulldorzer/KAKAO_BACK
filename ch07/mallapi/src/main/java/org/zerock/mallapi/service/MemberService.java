@@ -23,7 +23,7 @@ public interface MemberService {
                 member.getNickname(),
                 member.isSocial(),
                 member.getMemberRoleList().stream()
-                        .map(memberRole -> memberRole.name())
+                        .map(memberRole -> memberRole.name()) // memberRole(Enum)에 넣은 값을 불러옴
                         .collect(Collectors.toList()));
         return dto;
     }
